@@ -19,6 +19,7 @@ package firestore
 import (
 	"context"
 	"math"
+	"os"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -139,7 +140,18 @@ type Client struct {
 //   committed. Any read with an equal or greater read_time is guaranteed
 //   to see the effects of the transaction.
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
-	conn, err := transport.DialGRPC(ctx, append(defaultClientOptions(), opts...)...)
+	if addr := os.Getenv("FIRESTORE_EMULATOR_HOST"); addr != "" {
+		opts = []option.ClientOption{
+			option.WithEndpoint(addr),
+			option.WithoutAuthentication(),
+			option.WithGRPCDialOption(grpc.WithInsecure()),
+			option.WithScopes(DefaultAuthScopes()...),
+		}
+	} else {
+		opts = append(defaultClientOptions(), opts...)
+	}
+
+	conn, err := transport.DialGRPC(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
